@@ -1,0 +1,5 @@
+name = "custom-cloudflare-websocket"
+compatibility_date = "2026-02-01"
+main = "ws.js"
+
+compatibility_flags = [ "nodejs_compat" ]
