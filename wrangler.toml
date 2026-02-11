@@ -1,4 +1,4 @@
-name = "custom-cloudflare-websocket"
+name = "custom-cloudflare"
 compatibility_date = "2026-02-01"
 main = "ws.js"
 
