@@ -1,4 +1,4 @@
-name = "custom-cloudflare"
+name = "test007"
 compatibility_date = "2026-02-01"
 main = "ws.js"
 
