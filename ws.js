@@ -1,61 +1,45 @@
 export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const path = url.pathname;
+  async fetch(req, env, ctx) {
+    try {
+      const TARGET_HOST = 'ravi.ravikumar.live';
+      const TARGET_URL = `https://${TARGET_HOST}`;
 
-    if (request.headers.get("Upgrade")?.toLowerCase() === "websocket") {
-      // नया UUID यहाँ डाल दिया है
-      const UUID = "acac15ea-290c-490b-9665-3e2165356904";
+      const url = new URL(req.url);
+      const targetUrl = TARGET_URL + url.pathname + url.search;
 
-      const targetHost = "ravi.ravikumar.live";
-      const wsPath = "/vless";
+      const headers = new Headers(req.headers);
+      headers.set('Host', TARGET_HOST);
 
-      const webSocketPair = new WebSocketPair();
-      const [client, server] = Object.values(webSocketPair);
+      // Cloudflare-safe cleanup
+      headers.delete('cf-connecting-ip');
+      headers.delete('cf-ipcountry');
+      headers.delete('cf-ray');
 
-      server.accept();
-
-      const remoteWs = new WebSocket(`wss://${targetHost}${wsPath}`, {
-        headers: {
-          "Host": targetHost,
-          "User-Agent": request.headers.get("User-Agent") || "Mozilla/5.0",
-          "Origin": `https://${targetHost}`
-        }
-      });
-
-      server.addEventListener("message", event => {
-        if (remoteWs.readyState === WebSocket.OPEN) {
-          remoteWs.send(event.data);
-        }
-      });
-
-      remoteWs.addEventListener("message", event => {
-        if (server.readyState === WebSocket.OPEN) {
-          server.send(event.data);
-        }
-      });
-
-      const closeBoth = () => {
-        try { remoteWs.close(); } catch {}
-        try { server.close(); } catch {}
+      const options = {
+        method: req.method,
+        headers,
+        redirect: 'manual',
       };
 
-      remoteWs.addEventListener("close", closeBoth);
-      remoteWs.addEventListener("error", closeBoth);
-      server.addEventListener("close", closeBoth);
-      server.addEventListener("error", closeBoth);
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        options.body = req.body;
+      }
 
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
+      const response = await fetch(targetUrl, options);
+
+      const responseHeaders = new Headers(response.headers);
+      responseHeaders.delete('content-encoding');
+
+      return new Response(response.body, {
+        status: response.status,
+        headers: responseHeaders,
       });
-    }
 
-    return new Response(
-      `VLESS + WS (path: /vless) is running on ${url.hostname}\n\n` +
-      `Client config example:\n` +
-      `vless://${UUID}@${url.hostname}:443?encryption=none&security=tls&type=ws&host=${url.hostname}&path=/vless&sni=${url.hostname}#Ravi-VLESS-WS`,
-      { status: 200 }
-    );
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ error: 'Proxy error', message: err.message }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
   }
 };
